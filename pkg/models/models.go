@@ -13,9 +13,9 @@ type SendCoinRequest struct {
 
 // Responses
 type InfoResponse struct {
-	Coins     int    `json:"coins"`
-	Inventory []Item `json:"inventory"`
-	CoinHistory
+	Coins       int         `json:"coins"`
+	Inventory   []Item      `json:"inventory"`
+	CoinHistory CoinHistory `json:"coinHistory"`
 }
 
 type AuthResponse struct {
