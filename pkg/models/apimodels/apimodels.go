@@ -1,4 +1,4 @@
-package models
+package apimodels
 
 // Requests
 type AuthRequest struct {
@@ -38,11 +38,11 @@ type CoinHistory struct {
 }
 
 type Recieving struct {
-	FromUser string `json:"fromUser"`
-	Amount   int    `json:"amount"`
+	FromUser string `json:"fromUser" db:"reciever"`
+	Amount   int    `json:"amount" db:"amount"`
 }
 
 type Sending struct {
-	ToUser string `json:"fromUser"`
-	Amount int    `json:"amount"`
+	ToUser string `json:"toUser" db:"sender"`
+	Amount int    `json:"amount" db:"amount"`
 }

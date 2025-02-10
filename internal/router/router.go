@@ -2,8 +2,9 @@ package router
 
 import (
 	cerr "AvitoTest/pkg/customErrors"
-	"AvitoTest/pkg/models"
+	"AvitoTest/pkg/models/apimodels"
 	"encoding/json"
+	"errors"
 	"log/slog"
 	"strings"
 
@@ -18,6 +19,7 @@ type Config struct {
 
 type Router struct {
 	App  *fiber.App
+	cfg  Config
 	jwt  IJWT
 	auth IAuth
 	cash ICash
@@ -27,21 +29,20 @@ type IJWT interface {
 	GetUsernameFromToken(token string) (string, error)
 	ValidateToken(c *fiber.Ctx, key string) (bool, error)
 	AuthFilter(c *fiber.Ctx) bool
-	RefreshFilter(c *fiber.Ctx) bool
 }
 type IAuth interface {
-	AuthorizeUser(models.AuthRequest) (models.AuthResponse, error)
+	AuthorizeUser(apimodels.AuthRequest) (apimodels.AuthResponse, error)
 }
 
 type ICash interface {
 	BuyItem(string, string) error
-	UserInfo(string) (models.InfoResponse, error)
-	SendCoins(string, models.SendCoinRequest) error
+	UserInfo(string) (apimodels.InfoResponse, error)
+	SendCoins(string, apimodels.SendCoinRequest) error
 }
 
 func New(cfg Config, jwt IJWT, auth IAuth, cash ICash) *Router {
 	app := fiber.New()
-	router := Router{App: app, jwt: jwt, auth: auth, cash: cash}
+	router := Router{App: app, jwt: jwt, auth: auth, cash: cash, cfg: cfg}
 	router.App.Use(cors.New(cors.Config{
 		AllowHeaders: "X-Access-Token, X-Refresh-Token",
 	}))
@@ -58,23 +59,31 @@ func New(cfg Config, jwt IJWT, auth IAuth, cash ICash) *Router {
 	return &router
 }
 
+func (r *Router) Listen() error {
+	return r.App.Listen(r.cfg.Port)
+}
+
 func (r *Router) Auth() fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		var authCredentials models.AuthRequest
+		var authCredentials apimodels.AuthRequest
 		err := json.Unmarshal(c.Body(), &authCredentials)
 		if err != nil {
 			c.Status(500)
-			return c.JSON(models.ErrorResponse{Errors: err.Error()})
+			return c.JSON(apimodels.ErrorResponse{Errors: err.Error()})
 		}
 		resp, err := r.auth.AuthorizeUser(authCredentials)
 		if err != nil {
+			if errors.Is(err, cerr.ErrWrongPassword) {
+				c.Status(401)
+				return c.JSON(apimodels.ErrorResponse{Errors: err.Error()})
+			}
 			c.Status(500)
-			return c.JSON(models.ErrorResponse{Errors: err.Error()})
+			return c.JSON(apimodels.ErrorResponse{Errors: err.Error()})
 		}
 		err = c.JSON(resp)
 		if err != nil {
 			c.Status(500)
-			return c.JSON(models.ErrorResponse{Errors: err.Error()})
+			return c.JSON(apimodels.ErrorResponse{Errors: err.Error()})
 		}
 		c.Status(200)
 		return nil
@@ -88,18 +97,18 @@ func (r *Router) Info() fiber.Handler {
 		username, err := r.jwt.GetUsernameFromToken(bearerToken)
 		if err != nil {
 			c.Status(500)
-			return c.JSON(models.ErrorResponse{Errors: err.Error()})
+			return c.JSON(apimodels.ErrorResponse{Errors: err.Error()})
 		}
 		info, err := r.cash.UserInfo(username)
 		if err != nil {
 			c.Status(500)
-			return c.JSON(models.ErrorResponse{Errors: err.Error()})
+			return c.JSON(apimodels.ErrorResponse{Errors: err.Error()})
 		}
 		c.Status(200)
 		err = c.JSON(info)
 		if err != nil {
 			c.Status(500)
-			return c.JSON(models.ErrorResponse{Errors: err.Error()})
+			return c.JSON(apimodels.ErrorResponse{Errors: err.Error()})
 		}
 		return nil
 	}
@@ -112,22 +121,22 @@ func (r *Router) SendCoin() fiber.Handler {
 		username, err := r.jwt.GetUsernameFromToken(bearerToken)
 		if err != nil {
 			c.Status(500)
-			return c.JSON(models.ErrorResponse{Errors: err.Error()})
+			return c.JSON(apimodels.ErrorResponse{Errors: err.Error()})
 		}
-		var to models.SendCoinRequest
+		var to apimodels.SendCoinRequest
 		err = json.Unmarshal(c.Body(), &to)
 		if err != nil {
 			c.Status(500)
-			return c.JSON(models.ErrorResponse{Errors: err.Error()})
+			return c.JSON(apimodels.ErrorResponse{Errors: err.Error()})
 		}
 		err = r.cash.SendCoins(username, to)
 		if err != nil {
-			if err == cerr.ErrRecieverNotExist {
+			if errors.Is(err, cerr.ErrRecieverNotExist) {
 				c.Status(401)
-				return c.JSON(models.ErrorResponse{Errors: err.Error()})
+				return c.JSON(apimodels.ErrorResponse{Errors: err.Error()})
 			}
 			c.Status(500)
-			return c.JSON(models.ErrorResponse{Errors: err.Error()})
+			return c.JSON(apimodels.ErrorResponse{Errors: err.Error()})
 		}
 		c.Status(200)
 		return nil
@@ -141,17 +150,17 @@ func (r *Router) Buy() fiber.Handler {
 		username, err := r.jwt.GetUsernameFromToken(bearerToken)
 		if err != nil {
 			c.Status(500)
-			return c.JSON(models.ErrorResponse{Errors: err.Error()})
+			return c.JSON(apimodels.ErrorResponse{Errors: err.Error()})
 		}
 		item := c.Params("item")
 		err = r.cash.BuyItem(username, item)
 		if err != nil {
-			if err == cerr.ErrItemNotExist {
+			if errors.Is(err, cerr.ErrItemNotExist) {
 				c.Status(401)
-				return c.JSON(models.ErrorResponse{Errors: err.Error()})
+				return c.JSON(apimodels.ErrorResponse{Errors: err.Error()})
 			}
 			c.Status(500)
-			return c.JSON(models.ErrorResponse{Errors: err.Error()})
+			return c.JSON(apimodels.ErrorResponse{Errors: err.Error()})
 		}
 		c.Status(200)
 		return nil
