@@ -40,7 +40,7 @@ var (
 )
 
 // Создает jwt объект с ключами и сроком действия токенов
-func New(cfg *Config) (*JWT, error) {
+func New(cfg Config) (*JWT, error) {
 	jwt := JWT{}
 	var err error
 	privateKeyString := cfg.Key

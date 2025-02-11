@@ -50,7 +50,7 @@ func (d *DB) AuthorizeUser(username, password string) error {
 			slog.Error(err.Error())
 			return err
 		}
-		_, err = d.db.Exec(context.TODO(), `insert into public.users(username, password, amount) values($1, $2, $3)`, username, cryptedPassword, 1000)
+		_, err = d.db.Exec(context.TODO(), `insert into public.users(username, password, balance) values($1, $2, $3)`, username, cryptedPassword, 1000)
 		if err != nil {
 			slog.Error(err.Error())
 			return err
@@ -59,6 +59,9 @@ func (d *DB) AuthorizeUser(username, password string) error {
 	}
 	err = bcrypt.CompareHashAndPassword(user.Password, []byte(password))
 	if err != nil {
+		if errors.Is(err, bcrypt.ErrMismatchedHashAndPassword) {
+			return cerr.ErrWrongPassword
+		}
 		slog.Error(err.Error())
 		return err
 	}
@@ -67,7 +70,7 @@ func (d *DB) AuthorizeUser(username, password string) error {
 
 func (d *DB) Buy(username, itemTitle string) error {
 	var item dbmodels.Item
-	err := d.db.QueryRow(context.Background(), `select * from public.items where title = $1`, itemTitle).Scan(&item)
+	err := d.db.QueryRow(context.Background(), `select * from public.merch where title = $1`, itemTitle).Scan(&item.Title, &item.Price)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return cerr.ErrItemNotExist
@@ -77,6 +80,7 @@ func (d *DB) Buy(username, itemTitle string) error {
 	}
 	d.db.Exec(context.Background(), `begin transaction;`)
 	d.db.Exec(context.Background(), `update public.users set balance = balance-$1 where username=$2;`, item.Price, username)
+	d.db.Exec(context.Background(), `call add_item($1, $2);`, username, item.Title)
 	_, err = d.db.Exec(context.Background(), `commit;`)
 	if err != nil {
 		if errors.Is(err, pgx.ErrTxCommitRollback) {
@@ -99,8 +103,7 @@ func (d *DB) GetUserBalance(username string) (int, error) {
 	return int(user.Balance), nil
 }
 func (d *DB) GetUserInventory(username string) ([]apimodels.Item, error) {
-	var inventory []apimodels.Item
-	rows, err := d.db.Query(context.Background(), `select * from public.inventory where username=$1`, username)
+	rows, err := d.db.Query(context.Background(), `select item, amount from public.inventory where username=$1`, username)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return []apimodels.Item{}, nil
@@ -109,16 +112,20 @@ func (d *DB) GetUserInventory(username string) ([]apimodels.Item, error) {
 		return []apimodels.Item{}, err
 	}
 	defer rows.Close()
-	err = rows.Scan(inventory)
-	if err != nil {
-		slog.Error(err.Error())
-		return []apimodels.Item{}, err
+	inventory := make([]apimodels.Item, 0, 10)
+	for rows.Next() {
+		var part apimodels.Item
+		err := rows.Scan(&part.Type, &part.Quantity)
+		if err != nil {
+			slog.Error("error while scanning inventory: " + err.Error())
+			return []apimodels.Item{}, err
+		}
+		inventory = append(inventory, part)
 	}
 	return inventory, nil
 }
 func (d *DB) GetUserRecieveHistory(username string) ([]apimodels.Recieving, error) {
-	var rhistory []apimodels.Recieving
-	rows, err := d.db.Query(context.Background(), `select reciever, amount from public.history where reciever=$1`, username)
+	rows, err := d.db.Query(context.Background(), `select sender, amount from public.history where reciever=$1`, username)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return []apimodels.Recieving{}, nil
@@ -127,16 +134,20 @@ func (d *DB) GetUserRecieveHistory(username string) ([]apimodels.Recieving, erro
 		return []apimodels.Recieving{}, err
 	}
 	defer rows.Close()
-	err = rows.Scan(rhistory)
-	if err != nil {
-		slog.Error(err.Error())
-		return []apimodels.Recieving{}, err
+	rhistory := make([]apimodels.Recieving, 0, 20)
+	for rows.Next() {
+		var part apimodels.Recieving
+		err := rows.Scan(&part.FromUser, &part.Amount)
+		if err != nil {
+			slog.Error("error while scanning rhistory: " + err.Error())
+			continue
+		}
+		rhistory = append(rhistory, part)
 	}
 	return rhistory, nil
 }
 func (d *DB) GetUserSendHistory(username string) ([]apimodels.Sending, error) {
-	var shistory []apimodels.Sending
-	rows, err := d.db.Query(context.Background(), `select sender, amount from public.history where sender=$1`, username)
+	rows, err := d.db.Query(context.Background(), `select reciever, amount from public.history where sender=$1`, username)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return []apimodels.Sending{}, nil
@@ -145,10 +156,15 @@ func (d *DB) GetUserSendHistory(username string) ([]apimodels.Sending, error) {
 		return []apimodels.Sending{}, err
 	}
 	defer rows.Close()
-	err = rows.Scan(shistory)
-	if err != nil {
-		slog.Error(err.Error())
-		return []apimodels.Sending{}, err
+	shistory := make([]apimodels.Sending, 0, 20)
+	for rows.Next() {
+		var part apimodels.Sending
+		err := rows.Scan(&part.ToUser, &part.Amount)
+		if err != nil {
+			slog.Error("error while scanning rhistory: " + err.Error())
+			continue
+		}
+		shistory = append(shistory, part)
 	}
 	return shistory, nil
 }
@@ -164,12 +180,20 @@ func (d *DB) SendCoins(sender, reciever string, amount int) error {
 		slog.Error(err.Error())
 		return err
 	}
+	d.updateHistory(sender, reciever, amount)
 	return nil
+}
+
+func (d *DB) updateHistory(sender, reciever string, amount int) {
+	_, err := d.db.Exec(context.Background(), `insert into public.history values($1,$2,$3)`, sender, reciever, amount)
+	if err != nil {
+		slog.Error("error while updating history: " + err.Error())
+	}
 }
 
 func (d *DB) getUser(username string) (dbmodels.User, error) {
 	var user dbmodels.User
-	err := d.db.QueryRow(context.Background(), `select * from public.users where username = $1`, username).Scan(&user)
+	err := d.db.QueryRow(context.Background(), `select * from public.users where username = $1`, username).Scan(&user.Username, &user.Password, &user.Balance)
 	if err != nil {
 		return user, err
 	}

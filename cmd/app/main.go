@@ -38,7 +38,7 @@ func main() {
 		return
 	}
 	slog.Info("DB connected successfully")
-	jwt, err := jwt.New(cfg.JWTConfig)
+	jwt, err := jwt.New(*cfg.JWTConfig)
 	if err != nil {
 		slog.Error(err.Error())
 		return
