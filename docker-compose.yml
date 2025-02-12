@@ -1,6 +1,7 @@
 services:
   db:
     image: postgres:16
+    command: -c 'max_connections=1000'
     environment: 
       POSTGRES_DB: avitodb
       POSTGRES_USER: user

@@ -25,10 +25,10 @@ func TestDB(t *testing.T) {
 	t.Log("Starting")
 	cfg := Config{
 		Host:     "0.0.0.0",
-		Port:     "5436",
+		Port:     "5434",
 		User:     "user",
 		Password: "123",
-		DBName:   "avitomockdb",
+		DBName:   "avitodb",
 	}
 	var err error
 	db, err = New(cfg)
@@ -46,26 +46,26 @@ func TestAuth(t *testing.T) {
 	secondUser = User{username: "cool_guy_1337", password: "123123"}
 
 	t.Log("Authorizing first user")
-	err := db.AuthorizeUser(firstUser.username, firstUser.password)
+	err := db.AuthorizeUser(context.Background(), firstUser.username, firstUser.password)
 	if err != nil {
 		t.Error(err)
 	}
 
 	t.Log("Authorizing second user")
-	err = db.AuthorizeUser(secondUser.username, secondUser.password)
+	err = db.AuthorizeUser(context.Background(), secondUser.username, secondUser.password)
 	if err != nil {
 		t.Error(err)
 	}
 
 	t.Log("Authorizing first user with wrong password")
-	err = db.AuthorizeUser(firstUserWrongPassword.username, firstUserWrongPassword.password)
+	err = db.AuthorizeUser(context.Background(), firstUserWrongPassword.username, firstUserWrongPassword.password)
 	if err == nil {
 		t.Error("Should be wrong password error")
 	}
 	require.ErrorIs(t, err, cerr.ErrWrongPassword, "Error while authorizing with wrong password should be %v, not %v", cerr.ErrWrongPassword, err)
 
 	t.Log("Checkin if balance is 1000")
-	balance, err := db.GetUserBalance(firstUser.username)
+	balance, err := db.GetUserBalance(context.Background(), firstUser.username)
 	if err != nil {
 		t.Error(err)
 	}
@@ -76,31 +76,31 @@ func TestAuth(t *testing.T) {
 func TestBuy(t *testing.T) {
 	t.Log("Testing buying")
 	var err error
-	err = db.Buy(firstUser.username, "cup")
+	err = db.Buy(context.Background(), firstUser.username, "cup")
 	if err != nil {
 		t.Error(err)
 	}
 	t.Log("Buying again")
-	err = db.Buy(firstUser.username, "cup")
+	err = db.Buy(context.Background(), firstUser.username, "cup")
 	if err != nil {
 		t.Error(err)
 	}
 
 	t.Log("Checking inventory after buying thing")
-	inv, err := db.GetUserInventory(firstUser.username)
+	inv, err := db.GetUserInventory(context.Background(), firstUser.username)
 	if err != nil {
 		t.Error(err)
 	}
 	require.EqualValues(t, []apimodels.Item{{Type: "cup", Quantity: 2}}, inv, "Inventory should be %v, not %v", []apimodels.Item{{Type: "cup", Quantity: 1}}, inv)
 
-	balance, err := db.GetUserBalance(firstUser.username)
+	balance, err := db.GetUserBalance(context.Background(), firstUser.username)
 	if err != nil {
 		t.Error(err)
 	}
 	require.EqualValues(t, 960, balance, "New user's balance should be equal 960, not %v", balance)
 
 	t.Log("Buying non existing item")
-	err = db.Buy(firstUser.username, "non existent item")
+	err = db.Buy(context.Background(), firstUser.username, "non existent item")
 	if err == nil {
 		t.Error("Should be unreal item error")
 	}
@@ -113,40 +113,47 @@ func TestCoinTransfer(t *testing.T) {
 	var err error
 
 	t.Log("Sending coins from first to second user")
-	err = db.SendCoins(firstUser.username, secondUser.username, 10)
+	err = db.SendCoins(context.Background(), firstUser.username, secondUser.username, 10)
 	if err != nil {
 		t.Error(err)
 	}
 
 	t.Log("Sending coins from second to first user")
-	err = db.SendCoins(secondUser.username, firstUser.username, 20)
+	err = db.SendCoins(context.Background(), secondUser.username, firstUser.username, 20)
 	if err != nil {
 		t.Error(err)
 	}
 
+	t.Log("Sending coins to non-existent user")
+	err = db.SendCoins(context.Background(), firstUser.username, "", 1)
+	if err == nil {
+		t.Error(fmt.Errorf("should be no user error"))
+	}
+	require.EqualError(t, cerr.ErrRecieverNotExist, err.Error(), "Error should be: %v. Got: %v", cerr.ErrRecieverNotExist, err.Error())
+
 	t.Log("Trying to send more than possible")
-	err = db.SendCoins(firstUser.username, secondUser.username, 100000)
+	err = db.SendCoins(context.Background(), firstUser.username, secondUser.username, 100000)
 	if err == nil {
 		t.Error(fmt.Errorf("should be no money error"))
 	}
 	require.EqualError(t, cerr.ErrNoMoney, err.Error(), "Error should be: %v. Got: %v", cerr.ErrNoMoney, err.Error())
 
 	t.Log("Trying send to myself")
-	err = db.SendCoins(firstUser.username, firstUser.username, 10)
+	err = db.SendCoins(context.Background(), firstUser.username, firstUser.username, 10)
 	if err == nil {
 		t.Error(fmt.Errorf("should self send error"))
 	}
 	require.EqualError(t, cerr.ErrSelfSend, err.Error(), "Error should be: %v. Got: %v", cerr.ErrSelfSend, err.Error())
 
 	t.Log("Getting recieving history")
-	rhistory, err := db.GetUserRecieveHistory(firstUser.username)
+	rhistory, err := db.GetUserRecieveHistory(context.Background(), firstUser.username)
 	if err != nil {
 		t.Error(err)
 	}
 	require.EqualValues(t, []apimodels.Recieving{{FromUser: secondUser.username, Amount: 20}}, rhistory, "History should be %v, not %v", []apimodels.Recieving{{FromUser: secondUser.username, Amount: 20}}, rhistory)
 
 	t.Log("Getting sending history")
-	shistory, err := db.GetUserSendHistory(firstUser.username)
+	shistory, err := db.GetUserSendHistory(context.Background(), firstUser.username)
 	if err != nil {
 		t.Error(err)
 	}

@@ -2,6 +2,8 @@ package auth
 
 import (
 	"AvitoTest/pkg/models/apimodels"
+	"context"
+	"time"
 )
 
 type Auth struct {
@@ -10,7 +12,7 @@ type Auth struct {
 }
 
 type IDB interface {
-	AuthorizeUser(username, password string) error
+	AuthorizeUser(ctx context.Context, username, password string) error
 }
 
 type IJWT interface {
@@ -22,7 +24,9 @@ func New(db IDB, jwt IJWT) (*Auth, error) {
 }
 
 func (a *Auth) AuthorizeUser(credentials apimodels.AuthRequest) (apimodels.AuthResponse, error) {
-	err := a.db.AuthorizeUser(credentials.Username, credentials.Password)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	err := a.db.AuthorizeUser(ctx, credentials.Username, credentials.Password)
 	if err != nil {
 		return apimodels.AuthResponse{}, err
 	}

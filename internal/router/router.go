@@ -138,7 +138,7 @@ func (r *Router) SendCoin() fiber.Handler {
 		err = r.cash.SendCoins(username, to)
 		if err != nil {
 			if errors.Is(err, cerr.ErrRecieverNotExist) || errors.Is(err, cerr.ErrSelfSend) {
-				c.Status(401)
+				c.Status(400)
 				return c.JSON(apimodels.ErrorResponse{Errors: err.Error()})
 			}
 			c.Status(500)
@@ -164,7 +164,7 @@ func (r *Router) Buy() fiber.Handler {
 		err = r.cash.BuyItem(username, item)
 		if err != nil {
 			if errors.Is(err, cerr.ErrItemNotExist) {
-				c.Status(401)
+				c.Status(400)
 				return c.JSON(apimodels.ErrorResponse{Errors: err.Error()})
 			}
 			c.Status(500)

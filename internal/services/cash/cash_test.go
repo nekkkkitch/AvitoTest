@@ -2,6 +2,7 @@ package cash
 
 import (
 	"AvitoTest/pkg/models/apimodels"
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -9,22 +10,22 @@ import (
 
 type DB struct{}
 
-func (d *DB) Buy(user, item string) error {
+func (d *DB) Buy(_ context.Context, user, item string) error {
 	return nil
 }
-func (d *DB) GetUserBalance(username string) (int, error) {
+func (d *DB) GetUserBalance(_ context.Context, username string) (int, error) {
 	return 1000, nil
 }
-func (d *DB) GetUserInventory(username string) ([]apimodels.Item, error) {
+func (d *DB) GetUserInventory(_ context.Context, username string) ([]apimodels.Item, error) {
 	return []apimodels.Item{}, nil
 }
-func (d *DB) GetUserRecieveHistory(username string) ([]apimodels.Recieving, error) {
+func (d *DB) GetUserRecieveHistory(_ context.Context, username string) ([]apimodels.Recieving, error) {
 	return []apimodels.Recieving{}, nil
 }
-func (d *DB) GetUserSendHistory(username string) ([]apimodels.Sending, error) {
+func (d *DB) GetUserSendHistory(_ context.Context, username string) ([]apimodels.Sending, error) {
 	return []apimodels.Sending{}, nil
 }
-func (d *DB) SendCoins(sender, reciever string, amount int) error {
+func (d *DB) SendCoins(_ context.Context, sender, reciever string, amount int) error {
 	return nil
 }
 

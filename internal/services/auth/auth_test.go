@@ -2,6 +2,7 @@ package auth
 
 import (
 	"AvitoTest/pkg/models/apimodels"
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -10,7 +11,7 @@ import (
 type DB struct{}
 type JWT struct{}
 
-func (d *DB) AuthorizeUser(username, password string) error {
+func (d *DB) AuthorizeUser(_ context.Context, username, password string) error {
 	return nil
 }
 
