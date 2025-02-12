@@ -5,6 +5,7 @@ import (
 	"AvitoTest/pkg/models/apimodels"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log/slog"
 	"strings"
 
@@ -65,6 +66,7 @@ func (r *Router) Listen() error {
 
 func (r *Router) Auth() fiber.Handler {
 	return func(c *fiber.Ctx) error {
+		slog.Info("ROUTER: got auth")
 		var authCredentials apimodels.AuthRequest
 		err := json.Unmarshal(c.Body(), &authCredentials)
 		if err != nil {
@@ -92,6 +94,7 @@ func (r *Router) Auth() fiber.Handler {
 
 func (r *Router) Info() fiber.Handler {
 	return func(c *fiber.Ctx) error {
+		slog.Info("ROUTER: got info")
 		bearer := c.GetReqHeaders()["Authorization"]
 		bearerToken := strings.Split(bearer[0], " ")[1]
 		username, err := r.jwt.GetUsernameFromToken(bearerToken)
@@ -99,23 +102,25 @@ func (r *Router) Info() fiber.Handler {
 			c.Status(500)
 			return c.JSON(apimodels.ErrorResponse{Errors: err.Error()})
 		}
+		slog.Info(fmt.Sprintf("ROUTER: got request from %v to get info", username))
 		info, err := r.cash.UserInfo(username)
 		if err != nil {
 			c.Status(500)
 			return c.JSON(apimodels.ErrorResponse{Errors: err.Error()})
 		}
-		c.Status(200)
 		err = c.JSON(info)
 		if err != nil {
 			c.Status(500)
 			return c.JSON(apimodels.ErrorResponse{Errors: err.Error()})
 		}
+		c.Status(200)
 		return nil
 	}
 }
 
 func (r *Router) SendCoin() fiber.Handler {
 	return func(c *fiber.Ctx) error {
+		slog.Info("ROUTER: got sendCoin")
 		bearer := c.GetReqHeaders()["Authorization"]
 		bearerToken := strings.Split(bearer[0], " ")[1]
 		username, err := r.jwt.GetUsernameFromToken(bearerToken)
@@ -129,9 +134,10 @@ func (r *Router) SendCoin() fiber.Handler {
 			c.Status(500)
 			return c.JSON(apimodels.ErrorResponse{Errors: err.Error()})
 		}
+		slog.Info(fmt.Sprintf("ROUTER: got request from %v to send %v coins to %v", username, to.Amount, to.ToUser))
 		err = r.cash.SendCoins(username, to)
 		if err != nil {
-			if errors.Is(err, cerr.ErrRecieverNotExist) {
+			if errors.Is(err, cerr.ErrRecieverNotExist) || errors.Is(err, cerr.ErrSelfSend) {
 				c.Status(401)
 				return c.JSON(apimodels.ErrorResponse{Errors: err.Error()})
 			}
@@ -145,6 +151,7 @@ func (r *Router) SendCoin() fiber.Handler {
 
 func (r *Router) Buy() fiber.Handler {
 	return func(c *fiber.Ctx) error {
+		slog.Info("ROUTER: got buy")
 		bearer := c.GetReqHeaders()["Authorization"]
 		bearerToken := strings.Split(bearer[0], " ")[1]
 		username, err := r.jwt.GetUsernameFromToken(bearerToken)
@@ -153,6 +160,7 @@ func (r *Router) Buy() fiber.Handler {
 			return c.JSON(apimodels.ErrorResponse{Errors: err.Error()})
 		}
 		item := c.Params("item")
+		slog.Info(fmt.Sprintf("ROUTER: got request from %v to buy %v", username, item))
 		err = r.cash.BuyItem(username, item)
 		if err != nil {
 			if errors.Is(err, cerr.ErrItemNotExist) {

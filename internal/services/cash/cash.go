@@ -1,6 +1,7 @@
 package cash
 
 import (
+	cerr "AvitoTest/pkg/customErrors"
 	"AvitoTest/pkg/models/apimodels"
 )
 
@@ -50,6 +51,9 @@ func (c *Cash) UserInfo(username string) (apimodels.InfoResponse, error) {
 }
 
 func (c *Cash) SendCoins(username string, request apimodels.SendCoinRequest) error {
+	if username == request.ToUser {
+		return cerr.ErrSelfSend
+	}
 	err := c.db.SendCoins(username, request.ToUser, request.Amount)
 	if err != nil {
 		return err

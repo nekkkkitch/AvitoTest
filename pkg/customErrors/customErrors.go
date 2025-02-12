@@ -9,4 +9,5 @@ var (
 	ErrItemNotExist     = fmt.Errorf("no such items")
 	ErrWrongPassword    = fmt.Errorf("wrong password")
 	ErrNoMoney          = fmt.Errorf("not enough credits to buy this item")
+	ErrSelfSend         = fmt.Errorf("can't send cash to yourself")
 )

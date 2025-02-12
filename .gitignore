@@ -21,3 +21,4 @@
 go.work
 /.database/
 /.mockdatabase/
+/cmd/app/allure-results/

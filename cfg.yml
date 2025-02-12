@@ -6,6 +6,5 @@ db:
   dbname: "avitodb"
 jwt:
   access_token_expiration: 3600000
-  refresh_token_expiration: 3600000
 router:
   port: ":8080"

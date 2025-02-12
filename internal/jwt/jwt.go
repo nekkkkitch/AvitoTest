@@ -35,7 +35,7 @@ const (
 
 var (
 	noNeedToProvideAuthTokenURLs = []*regexp.Regexp{
-		regexp.MustCompile("^/info/auth$"),
+		regexp.MustCompile("^/api/auth$"),
 	}
 )
 
@@ -78,6 +78,7 @@ func (j *JWT) CreateToken(username string) (string, error) {
 
 // Проверяет валидность токенов
 func (j *JWT) ValidateToken(c *fiber.Ctx, token string) (bool, error) {
+	token = strings.Split(token, " ")[1]
 	claims := jwt.MapClaims{}
 	_, err := jwt.ParseWithClaims(token, claims, func(token *jwt.Token) (interface{}, error) {
 		return j.PublicKey, nil
