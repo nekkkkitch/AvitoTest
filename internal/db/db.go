@@ -46,7 +46,7 @@ func (d *DB) AuthorizeUser(ctx context.Context, username, password string) error
 			slog.Error("Finding user error: " + "DB: " + err.Error())
 			return err
 		}
-		cryptedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+		cryptedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.MinCost)
 		if err != nil {
 			slog.Error("DB: " + err.Error())
 			return err
