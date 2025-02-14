@@ -10,7 +10,7 @@ sudo git clone https://github.com/nekkkkitch/AvitoTest
 ```
 cd AvitoTest
 ```
-2. Стартуем и ждем запуска
+2. Стартуем и ждем(ВАЖНО! бд могут показываться как активные, но им нужно около минуты для начала работы) запуска
 ```
 sudo make start
 ```
