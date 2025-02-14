@@ -36,18 +36,18 @@ export default function () {
         console.log(res);
     }
     let rich_man = available_users[Math.floor(Math.random()*available_users.length)]
-    sleep(0.1);
+    sleep(0.01);
     params.headers.Authorization = 'Bearer ' + res.json().token;
     res = http.get(url+'/info', params);
     if(res.status != 200){
         console.log(res);
     }
-    sleep(0.1);
+    sleep(0.01);
     res = http.get(url+'/buy/cup', params);
     if(res.status != 200){
         console.log(res);
     }
-    sleep(0.1);
+    sleep(0.01);
     payload = JSON.stringify({
         toUser: rich_man,
         amount: 10,
@@ -56,5 +56,5 @@ export default function () {
     if(res.status != 200){
         console.log(res);
     }
-    sleep(0.1);
+    sleep(0.01);
   }
