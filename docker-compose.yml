@@ -1,7 +1,14 @@
 services:
   db:
     image: postgres:16
-    command: -c 'max_connections=1000'
+    command: 
+      - "postgres"
+      - "-c"
+      - "max_connections=1000"
+      - "-c"
+      - "shared_buffers=3GB"
+      - "-c"
+      - "work_mem=1GB"
     environment: 
       POSTGRES_DB: avitodb
       POSTGRES_USER: user

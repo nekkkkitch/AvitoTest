@@ -24,7 +24,7 @@ func New(db IDB, jwt IJWT) (*Auth, error) {
 }
 
 func (a *Auth) AuthorizeUser(credentials apimodels.AuthRequest) (apimodels.AuthResponse, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 	err := a.db.AuthorizeUser(ctx, credentials.Username, credentials.Password)
 	if err != nil {

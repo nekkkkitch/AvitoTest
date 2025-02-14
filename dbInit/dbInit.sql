@@ -59,3 +59,14 @@ insert into public.merch values('umbrella', 200);
 insert into public.merch values('socks', 10);
 insert into public.merch values('wallet', 50);
 insert into public.merch values('pink-hoody', 500);
+
+insert into public.users values('1', '', 0);
+insert into public.users values('2', '', 0);
+insert into public.users values('3', '', 0);
+insert into public.users values('4', '', 0);
+insert into public.users values('5', '', 0);
+insert into public.users values('6', '', 0);
+insert into public.users values('7', '', 0);
+insert into public.users values('8', '', 0);
+insert into public.users values('9', '', 0);
+insert into public.users values('10', '', 0);

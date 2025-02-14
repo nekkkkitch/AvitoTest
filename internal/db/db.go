@@ -205,7 +205,7 @@ func (d *DB) SendCoins(ctx context.Context, sender, reciever string, amount int)
 	}
 	conn, err := d.db.Acquire(ctx)
 	if err != nil {
-		slog.Error("DB: " + "DB: " + err.Error())
+		slog.Error("DB: " + err.Error())
 		return err
 	}
 	defer conn.Release()
@@ -231,15 +231,12 @@ func (d *DB) SendCoins(ctx context.Context, sender, reciever string, amount int)
 		slog.Error("DB: " + err.Error())
 		return err
 	}
-	d.updateHistory(ctx, sender, reciever, amount)
-	return nil
-}
-
-func (d *DB) updateHistory(ctx context.Context, sender, reciever string, amount int) {
-	_, err := d.db.Exec(ctx, `insert into public.history values($1,$2,$3)`, sender, reciever, amount)
+	_, err = tx.Exec(ctx, `insert into public.history values($1,$2,$3)`, sender, reciever, amount)
 	if err != nil {
-		slog.Error("error while updating history: " + "DB: " + err.Error())
+		slog.Error("DB: " + err.Error())
+		return err
 	}
+	return nil
 }
 
 func (d *DB) getUser(ctx context.Context, username string) (dbmodels.User, error) {
